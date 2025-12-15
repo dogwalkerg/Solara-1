@@ -15,7 +15,7 @@
         if (!dom.mobileToolbarTitle) {
             return;
         }
-        dom.mobileToolbarTitle.textContent = "Solara";
+        dom.mobileToolbarTitle.innerHTML = "<span style='color: #ff9800;'>李小雅-音乐</span><br><span style='font-size: 12px; color: #00bcd4;'>来自一位顾不上爱你的人制作!</span>";
     }
 
     function updateMobileOverlayScrim() {
