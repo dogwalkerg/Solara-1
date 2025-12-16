@@ -460,6 +460,28 @@ body.background-transitioning .background-stage__layer--transition {
     background: var(--item-hover-bg);
 }
 
+/* 导入按钮颜色区分 - 添加在 .import-dropdown-item 样式之后 */
+#importToPlaylist {
+    color: #4CAF50; /* 绿色 - 播放列表 */
+    font-weight: 500;
+}
+
+#importToFavorites {
+    color: #E91E63; /* 粉色/红色 - 收藏 */
+    font-weight: 500;
+}
+
+/* 悬停效果 */
+#importToPlaylist:hover {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: #388E3C; /* 深绿色 */
+}
+
+#importToFavorites:hover {
+    background-color: rgba(233, 30, 99, 0.1);
+    color: #C2185B; /* 深粉色 */
+}
+
 .search-results-list {
     display: flex;
     flex-direction: column;
