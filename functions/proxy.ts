@@ -1,4 +1,4 @@
-// proxy.ts - 改进版，支持多个备用 API 源和缓存
+// proxy.ts - 修复全局作用域问题
 
 const API_SOURCES = [
   "https://music-api.gdstudio.xyz/api.php",  // 主源
@@ -266,6 +266,32 @@ async function fetchWithRetry(apiUrl: string, request: Request, maxRetries: numb
   });
 }
 
+// 清理过期的缓存
+function cleanupCache() {
+  const now = Date.now();
+  let removedCount = 0;
+  for (const [key, value] of searchCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL * 1000 * 2) { // 两倍 TTL 后清理
+      searchCache.delete(key);
+      removedCount++;
+    }
+  }
+  if (removedCount > 0) {
+    console.log(`清理了 ${removedCount} 个过期缓存项`);
+  }
+}
+
+// 定期检查 API 健康状态
+async function periodicHealthCheck() {
+  console.log("开始定期 API 健康检查...");
+  let healthyCount = 0;
+  for (let i = 0; i < API_SOURCES.length; i++) {
+    const isHealthy = await checkApiHealth(API_SOURCES[i], i);
+    if (isHealthy) healthyCount++;
+  }
+  console.log(`API 健康检查完成: ${healthyCount}/${API_SOURCES.length} 个 API 可用`);
+}
+
 async function proxyApiRequest(url: URL, request: Request): Promise<Response> {
   const searchType = url.searchParams.get("types");
   
@@ -323,31 +349,6 @@ async function proxyApiRequest(url: URL, request: Request): Promise<Response> {
   return fetchWithRetry(apiUrl, request, 2);
 }
 
-// 定期清理过期的缓存
-function cleanupCache() {
-  const now = Date.now();
-  for (const [key, value] of searchCache.entries()) {
-    if (now - value.timestamp > CACHE_TTL * 1000 * 2) { // 两倍 TTL 后清理
-      searchCache.delete(key);
-    }
-  }
-}
-
-// 定期检查 API 健康状态
-async function periodicHealthCheck() {
-  console.log("开始定期 API 健康检查...");
-  for (let i = 0; i < API_SOURCES.length; i++) {
-    await checkApiHealth(API_SOURCES[i], i);
-  }
-  console.log("API 健康状态:", apiHealthStatus);
-}
-
-// 每5分钟清理一次缓存，每10分钟检查一次 API 健康
-if (typeof globalThis !== "undefined") {
-  setInterval(cleanupCache, 5 * 60 * 1000);
-  setInterval(periodicHealthCheck, 10 * 60 * 1000);
-}
-
 export async function onRequest({ request }: { request: Request }): Promise<Response> {
   if (request.method === "OPTIONS") {
     return handleOptions();
@@ -359,6 +360,24 @@ export async function onRequest({ request }: { request: Request }): Promise<Resp
 
   const url = new URL(request.url);
   const target = url.searchParams.get("target");
+
+  // 在请求处理中执行缓存清理和健康检查（每100次请求执行一次）
+  const requestCount = parseInt(localStorage?.getItem?.('requestCount') || '0') + 1;
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('requestCount', requestCount.toString());
+    
+    // 每100次请求清理一次缓存
+    if (requestCount % 100 === 0) {
+      cleanupCache();
+    }
+    
+    // 每200次请求检查一次API健康
+    if (requestCount % 200 === 0) {
+      // 注意：这里不能直接 await，否则会阻塞请求
+      // 改为在后台执行
+      periodicHealthCheck().catch(err => console.error("健康检查失败:", err));
+    }
+  }
 
   if (target) {
     return proxyKuwoAudio(target, request);
